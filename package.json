@@ -1,0 +1,18 @@
+{
+  "name": "@digitalbranch/charts",
+  "version": "0.0.1",
+  "description": "Charting library for Javascript",
+  "main": "src/index.js",
+  "scripts": {
+    "test": ""
+  },
+  "keywords": [],
+  "author": "V.J.M. Corbee",
+  "license": "MIT",
+  "dependencies": {
+    "@digitalbranch/dispatcher": "file:../dispatcher",
+    "@digitalbranch/emitter": "file:../emitter",
+    "@digitalbranch/u": "file:../U",
+    "@digitalbranch/ui": "file:../ui"
+  }
+}
