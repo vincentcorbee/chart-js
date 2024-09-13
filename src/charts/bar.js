@@ -1,10 +1,16 @@
-import {
-  showHide,
-  addListener,
-  isType,
-} from '@digitalbranch/u'
+import { showHide, addListener, isType } from '@digitalbranch/u'
 import Dispatcher from '@digitalbranch/dispatcher'
-import { formatValue, norm, getDimensions, shade, tint, getMax, createElement, createText, createLegend } from '../utils'
+import {
+  formatValue,
+  norm,
+  getDimensions,
+  shade,
+  tint,
+  getMax,
+  createElement,
+  createText,
+  createLegend,
+} from '../utils'
 import { FILTER, LEGEND_SIZE, VALUE_SIZE } from '../constants/constants'
 
 export const bar = (data, options = {}, instance) => {
@@ -17,6 +23,7 @@ export const bar = (data, options = {}, instance) => {
   //   x: axis.x ? axis.x.label : '',
   //   y: axis.y ? axis.y.label : ''
   // }
+  const isStacked = options.isStacked === true
   const docFrag = document.createDocumentFragment()
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   const PADDING = 20
@@ -26,7 +33,7 @@ export const bar = (data, options = {}, instance) => {
   const formatX = axis && axis.x ? axis.x.format || 'number' : 'number'
   const formatY = axis && axis.y ? axis.y.format || 'number' : 'number'
   const minValue = options.minValue || 0
-  const maxValue = options.maxValue || getMax(data)
+  const maxValue = options.maxValue || getMax(data, null, isStacked)
 
   let HEIGHT = options.height || target.clientHeight
   let WIDTH = options.width || target.clientWidth
@@ -84,7 +91,10 @@ export const bar = (data, options = {}, instance) => {
 
   const createChartLabelY = (options, g) => {
     if (options.axis && options.axis.y) {
-      const labelY = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      const labelY = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'text'
+      )
 
       options.axis.y.label = options.axis.y.label || ''
       labelY.textContent = options.axis.y.label
@@ -103,15 +113,16 @@ export const bar = (data, options = {}, instance) => {
         `rotate(-90 ${HEIGHT + offset.x} ${chart.height / 2 + offset.y})`
       )
 
-      if (HEIGHT > 0) {
-        offset.x += HEIGHT + 10
-      }
+      if (HEIGHT > 0) offset.x += HEIGHT + 10
     }
   }
 
   const createChartLabelX = (options, g) => {
     if (options.axis && options.axis.x) {
-      const labelX = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      const labelX = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'text'
+      )
 
       options.axis.x.label = options.axis.x.label || ''
       labelX.textContent = options.axis.x.label
@@ -124,13 +135,16 @@ export const bar = (data, options = {}, instance) => {
 
       chart.height -= height + 10
 
-      labelX.setAttribute('y', chart.height + offset.y + height + 10 + VALUE_SIZE + 5)
+      labelX.setAttribute(
+        'y',
+        chart.height + offset.y + height + 10 + VALUE_SIZE + 5
+      )
       labelX.setAttribute('x', offset.x + chart.width / 2)
       labelX.setAttribute('text-anchor', 'middle')
     }
   }
 
-  const createBars = data => {
+  const createBars = (data) => {
     const props = {
       'font-size': `${VALUE_SIZE}px`,
       'font-family': 'inherit',
@@ -143,68 +157,86 @@ export const bar = (data, options = {}, instance) => {
     let y = offset.y + (type === 'horizontal' ? 0 : 1)
     let x = offset.x + (type === 'horizontal' ? 1 : 0)
 
+    const startX = x
+
     data.forEach((o, i) => {
-      const values = o.value.filter(value => !isType('String', value))
-      const length = values.length
+      const values = o.value.filter((value) => !isType('String', value))
+      const barsPerColumn = values.length
       const colors = options.colors ? options.colors : o.color || defaultColors
-      const widthColumn =
-        (100 / columnCount / length / 100) *
+      const columnWidth =
+        (100 / columnCount / (isStacked ? 1 : barsPerColumn) / 100) *
         ((type === 'horizontal' ? chart.height : chart.width) -
           (spacingWidth * columnCount + 1))
 
-      x +=
-        type === 'horizontal'
-          ? 0
-          : i === 0
-          ? spacingWidth / 2
-          : widthColumn + spacingWidth
+      if (type === 'horizontal') {
+        x += 0
+      } else {
+        x += i === 0 ? spacingWidth / 2 : columnWidth + spacingWidth
+      }
 
       const textX =
-        type === 'horizontal' ? offset.x - 10 : x + (widthColumn * length) / 2
-
-      y +=
         type === 'horizontal'
-          ? i === 0
-            ? spacingWidth / 2
-            : widthColumn + spacingWidth
-          : 0
+          ? offset.x - 10
+          : x + (columnWidth * (isStacked ? 1 : barsPerColumn)) / 2
+
+      if (type === 'horizontal') {
+        y += i === 0 ? spacingWidth / 2 : columnWidth + spacingWidth
+      } else {
+        y += 0
+      }
 
       const textY =
         type === 'horizontal'
           ? y +
-            widthColumn / 2 +
-            getDimensions(formatValue(data[i].value[0], formatY), props, svg).height / 2
+            columnWidth / 2 +
+            getDimensions(formatValue(data[i].value[0], formatY), props, svg)
+              .height /
+              2
           : chart.height + PADDING + VALUE_SIZE + 5
+
+      let prevColumnHeight = 0
 
       values.forEach((value, i) => {
         const normValue = norm(value, minValue, maxValue)
-        const heightColumn = Math.round(
+        const columnHeight = Math.round(
           normValue * (type === 'horizontal' ? chart.width : chart.height)
         )
 
-        y = type === 'horizontal' ? y : chart.height - heightColumn + PADDING
+        y = type === 'horizontal' ? y : chart.height - columnHeight + PADDING
 
         if (i > 0) {
           if (type === 'horizontal') {
-            y += widthColumn
+            if (isStacked) {
+              x += prevColumnHeight
+            } else {
+              y += columnWidth
+            }
           } else {
-            x += widthColumn
+            if (isStacked) {
+              y -= prevColumnHeight
+            } else {
+              x += columnWidth
+            }
           }
         }
+
+        prevColumnHeight = columnHeight
 
         bars.appendChild(
           createBar(
             formatValue(value, type === 'horizontal' ? formatX : formatY),
-            type === 'horizontal' ? widthColumn : heightColumn,
-            type === 'horizontal' ? heightColumn : widthColumn,
+            type === 'horizontal' ? columnWidth : columnHeight,
+            type === 'horizontal' ? columnHeight : columnWidth,
             x,
             y,
             colors[i],
-            values.length > 1 ? o.label[i] : o.label ? o.label[i] : o.value[0],
+            barsPerColumn > 1 ? o.label[i] : o.label ? o.label[i] : o.value[0],
             [o.value[i], value]
           )
         )
       })
+
+      if (type === 'horizontal' && isStacked) x = startX
 
       labels.appendChild(
         createText(
@@ -222,7 +254,16 @@ export const bar = (data, options = {}, instance) => {
     svg.appendChild(labels)
   }
 
-  const createBar = (value, height = 0, width = 0, x, y, fill, label, values = []) => {
+  const createBar = (
+    value,
+    height = 0,
+    width = 0,
+    x,
+    y,
+    fill,
+    label,
+    values = []
+  ) => {
     const bar = createElement('rect', x, y, {
       height,
       width,
@@ -247,7 +288,8 @@ export const bar = (data, options = {}, instance) => {
 
     return bar
   }
-  const drawLines = numLines => {
+
+  const drawLines = (numLines) => {
     const spacing = Math.round(
       (type === 'horizontal' ? chart.width : chart.height) / numLines
     )
@@ -292,13 +334,13 @@ export const bar = (data, options = {}, instance) => {
     }
   }
 
-  const setOffsetX = data => {
+  const setOffsetX = (data) => {
     if (type === 'horizontal') {
       offset.x +=
         (data
           .map(
-            o =>
-              getDimensions(formatValue(o.value[0], formatY), {
+            ({ value }) =>
+              getDimensions(formatValue(value[0], formatY), {
                 'font-size': `${VALUE_SIZE}px`,
                 'font-family': 'inherit',
               }).width
@@ -318,7 +360,8 @@ export const bar = (data, options = {}, instance) => {
     //chart.height -= LABEL_SIZE
   }
 
-  const drawValues = values => {
+  const drawValues = (values) => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     const spacing =
       (type === 'horizontal' ? chart.width : chart.height) /
       (values.length ? values.length - 1 : 1)
@@ -327,9 +370,8 @@ export const bar = (data, options = {}, instance) => {
         ? chart.height + PADDING + VALUE_SIZE + 5
         : chart.height + PADDING + (VALUE_SIZE - 2) / 2
     let x = offset.x
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
 
-    values.forEach(value => {
+    values.forEach((value) => {
       g.appendChild(
         createText(
           formatValue(value, type === 'horizontal' ? formatX : formatY),
@@ -347,22 +389,35 @@ export const bar = (data, options = {}, instance) => {
       }
     })
 
-    if (type === 'vertical') {
-      offset.x += 10
-    }
+    if (type === 'vertical') offset.x += 10
 
     svg.appendChild(g)
   }
 
-  const showInfo = target => {
+  const showInfo = (target) => {
     const node = target
     const parent = svg
 
-    const textNode = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-    const nodeX = document.createElementNS('http://www.w3.org/2000/svg', 'tspan')
-    const nodeY = document.createElementNS('http://www.w3.org/2000/svg', 'tspan')
-    const valueNodeY = document.createElementNS('http://www.w3.org/2000/svg', 'tspan')
-    const valueNodeX = document.createElementNS('http://www.w3.org/2000/svg', 'tspan')
+    const textNode = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'text'
+    )
+    const nodeX = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    )
+    const nodeY = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    )
+    const valueNodeY = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    )
+    const valueNodeX = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    )
     const info = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     const docFrag = document.createDocumentFragment()
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
@@ -424,14 +479,18 @@ export const bar = (data, options = {}, instance) => {
     textNode.setAttribute(
       'x',
       node.info.x + widthBar + width + 22 > chart.width + offset.x + PADDING
-        ? node.info.x - (width + 20) + (type === 'horizontal' ? widthBar + 2 : 0)
+        ? node.info.x -
+            (width + 20) +
+            (type === 'horizontal' ? widthBar + 2 : 0)
         : node.info.x + 14 + widthBar
     )
 
     nodeY.setAttribute(
       'x',
       node.info.x + widthBar + width + 22 > chart.width + offset.x + PADDING
-        ? node.info.x - (width + 20) + (type === 'horizontal' ? widthBar + 2 : 0)
+        ? node.info.x -
+            (width + 20) +
+            (type === 'horizontal' ? widthBar + 2 : 0)
         : node.info.x + 14 + widthBar
     )
 
@@ -440,7 +499,9 @@ export const bar = (data, options = {}, instance) => {
     rect.setAttribute(
       'x',
       node.info.x + widthBar + width + 22 > chart.width + offset.x + PADDING
-        ? node.info.x - (width + 25) + (type === 'horizontal' ? widthBar + 2 : 0)
+        ? node.info.x -
+            (width + 25) +
+            (type === 'horizontal' ? widthBar + 2 : 0)
         : node.info.x + widthBar + 5
     )
     rect.setAttribute(
@@ -457,27 +518,32 @@ export const bar = (data, options = {}, instance) => {
     })
   }
 
-  const hideInfo = target => {
+  const hideInfo = (target) => {
     const parent = svg
     const info = target.tip || null
 
-    if (info) {
-      parent.removeChild(info)
-    }
+    if (info) parent.removeChild(info)
   }
 
   docFrag.appendChild(svg)
 
   target.appendChild(docFrag)
-  console.log(offset)
+
   if (options.legend) {
-    const bbox = createLegend(options.legend, 0, PADDING, WIDTH - PADDING, HEIGHT, svg, LEGEND_SIZE, LEGEND_SIZE, VALUE_SIZE)
-      .bbox
+    const bbox = createLegend(
+      options.legend,
+      0,
+      PADDING,
+      WIDTH - PADDING,
+      HEIGHT,
+      svg,
+      LEGEND_SIZE,
+      LEGEND_SIZE,
+      VALUE_SIZE
+    ).bbox
 
     chart.width -= options.legend.position === 'right' ? bbox.width : 0
-
   }
-  console.log(WIDTH)
 
   setValues(
     type === 'horizontal' ? gridLines.x.count : gridLines.y.count,
@@ -568,10 +634,8 @@ export const bar = (data, options = {}, instance) => {
     },
     {
       event: 'click',
-      callback(e, target) {
-        if (e.type === 'click' && target) {
-          instance.emit('click', target.info)
-        }
+      callback({ type }, target) {
+        if (type === 'click' && target) instance.emit('click', target.info)
       },
     }
   )
@@ -584,9 +648,12 @@ export const bar = (data, options = {}, instance) => {
   defs.insertAdjacentHTML(
     'beforeend',
     `<clipPath id='${clipPathId}'>
-      <rect x='${offset.x}' y='${PADDING - 1}' width='${chart.width + 2}' height='${
-      chart.height + (type === 'vertical' ? 2 : 0)
-    }'></rect>
+      <rect x='${offset.x}' y='${PADDING - 1}' width='${
+      chart.width + 2
+    }' height='${Math.max(
+      chart.height + (type === 'vertical' ? 2 : 0),
+      0
+    )}'></rect>
     </clipPath>`
   )
 

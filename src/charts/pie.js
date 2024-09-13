@@ -6,11 +6,12 @@ import Dispatcher from '@digitalbranch/dispatcher'
 import { genColor, formatValue, getDimensions, createLegend } from '../utils'
 import { FILTER, LEGEND_SIZE, VALUE_SIZE } from '../constants/constants'
 
+const getPos = (centerX, centerY, part, r) => ({
+  x: (centerX + Math.cos((part * Math.PI) / 180) * r) || 0,
+  y: (centerY + Math.sin((part * Math.PI) / 180) * r) || 0,
+})
+
 export const pie = (data, options = {}, instance) => {
-  const getPos = (centerX, centerY, part, r) => ({
-    x: centerX + Math.cos((part * Math.PI) / 180) * r,
-    y: centerY + Math.sin((part * Math.PI) / 180) * r,
-  })
   const showInfo = target => {
     let parent = svg
     let label
@@ -154,7 +155,7 @@ export const pie = (data, options = {}, instance) => {
     const { value, label } = el
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
     const outerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-    const part = (360 / 100) * ((value / total) * 100)
+    const part = (360 / 100) * ((value / total) * 100) || 0
     const curPos = getPos(centerX, centerY, totalDeg + part, hole ? (r + hole) / 2 : r)
     const posOuter = getPos(
       centerX,
@@ -298,9 +299,9 @@ export const pie = (data, options = {}, instance) => {
     {
       event: 'click',
       callback(e, target) {
-        if (e.type === 'click') {
+        if (e.type === 'click')
           instance.emit('click', target.info)
-        }
+
       },
     }
   )

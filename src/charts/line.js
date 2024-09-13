@@ -6,8 +6,7 @@ import Dispatcher from '@digitalbranch/dispatcher'
 import { formatValue, norm, getDimensions, getMax, getMin, createElement, createText, createLegend } from '../utils'
 import { FILTER, LEGEND_SIZE, VALUE_SIZE } from '../constants/constants'
 
-export const line = (data, options = {}, instance) => {
-  let dispatcher
+export const line = (data, options = {}, _instance) => {
   const target =
     typeof options.target === 'string'
       ? document.getElementById(options.target)
@@ -38,8 +37,8 @@ export const line = (data, options = {}, instance) => {
         : getMax(data, 'x'),
   }
   const dimensions = {
-    y: options.height || target.clientHeight,
-    x: options.width || target.clientWidth,
+    y: options.height ?? target.clientHeight,
+    x: options.width ?? target.clientWidth,
   }
   const padding = 30
   const chart = {
@@ -167,9 +166,8 @@ export const line = (data, options = {}, instance) => {
   const hideInfo = node => {
     const info = node.tip || null
 
-    if (info) {
+    if (info)
       svg.removeChild(info)
-    }
   }
 
   const drawValues = (numLinesX, numLinesY, min, max) => {
@@ -392,7 +390,7 @@ export const line = (data, options = {}, instance) => {
   </clipPath>`
   )
 
-  dispatcher = new Dispatcher(
+  const dispatcher = new Dispatcher(
     {
       event: 'showInfo',
       callback: (e, target) => {
